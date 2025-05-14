@@ -1,0 +1,39 @@
+- name: Install Apache and customize systemd service
+  hosts: ec2
+  become: true
+
+  tasks:
+    - name: Install Apache
+      yum:
+        name: httpd
+        state: present
+
+    - name: Create custom systemd unit file
+      copy:
+        dest: /etc/systemd/system/httpd.service
+        content: |
+          [Unit]
+          Description=Apache Web Server
+          After=network.target
+
+          [Service]
+          ExecStartPre=/bin/bash -c 'echo "Apache is about to start" >> /var/log/apache-start.log'
+          ExecStart=/usr/sbin/httpd -DFOREGROUND
+          ExecReload=/bin/kill -HUP $MAINPID
+          ExecStartPost=/bin/bash -c 'echo "This is a test of Post" >> /var/log/apache-start.log'
+          KillMode=process
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      command: systemctl daemon-reexec
+
+    - name: Enable and start Apache
+      systemd:
+        name: httpd
+        enabled: yes
+        state: restarted
+
+
